@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#ifndef EMU
 #include "board_pins.h"
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
@@ -122,3 +123,5 @@ void audio_i2s_submit_buffer(uint32_t *frames) {
 uint32_t audio_i2s_underruns(void) {
     return underruns;
 }
+
+#endif

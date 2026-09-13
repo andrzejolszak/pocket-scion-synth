@@ -1,8 +1,17 @@
 #include <stdint.h>
 
+#ifndef EMU
 #include "audio_i2s.h"
+#else
+#define AUDIO_FRAMES_PER_BUFFER 256u
+#endif
+
 #include "controls.h"
+
+#ifndef EMU
 #include "hardware/clocks.h"
+#endif // !EMU
+
 #include "midi_uart.h"
 #include "pico/stdlib.h"
 #include "raw_capture.h"
@@ -90,7 +99,9 @@ int main(void) {
     midi_uart_init();
     synth_sync_midi(&synth);
     sensor_init();
+#ifndef EMU
     audio_i2s_init();
+#endif // !EMU
     raw_capture_init();
     status_rgb_init();
     show_program_state();
@@ -103,13 +114,20 @@ int main(void) {
             synth_sync_midi(&synth);
         }
         usb_midi_was_mounted = usb_midi_is_mounted;
+
+#ifndef EMU
         uint32_t *audio_frames;
         if (audio_i2s_take_buffer(&audio_frames)) {
             synth_render(&synth, audio_frames, AUDIO_FRAMES_PER_BUFFER);
             audio_i2s_submit_buffer(audio_frames);
             continue;
         }
-
+#else
+        uint32_t* audio_frames;
+        // TODO
+            synth_render(&synth, audio_frames, AUDIO_FRAMES_PER_BUFFER);
+            continue;
+#endif
         sensor_service();
         synth_service(&synth);
         apply_control(controls_poll());

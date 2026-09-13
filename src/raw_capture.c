@@ -3,10 +3,14 @@
 #include <string.h>
 
 #include "board_pins.h"
+#ifndef EMU
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
+#endif // !EMU
 #include "hardware/irq.h"
+#ifndef EMU
 #include "hardware/structs/io_bank0.h"
+#endif
 #include "hardware/sync.h"
 #include "synth.h"
 
@@ -20,12 +24,19 @@ static volatile uint8_t completed_buffer;
 static volatile bool capture_ready;
 
 static void capture_dma_irq(void) {
+#ifndef EMU
     uint32_t status = dma_hw->ints1;
+#else
+// TODO
+    uint32_t status = 0;
+#endif
     for (unsigned i = 0; i < RAW_CAPTURE_BUFFER_COUNT; ++i) {
         uint32_t bit = 1u << (uint)capture_dma_channels[i];
         if (!(status & bit)) continue;
 
+#ifndef EMU
         dma_hw->ints1 = bit;
+#endif
         completed_buffer = (uint8_t)i;
         capture_ready = true;
 
@@ -40,6 +51,7 @@ static void capture_dma_irq(void) {
 void raw_capture_init(void) {
     memset(capture_buffers, 0, sizeof(capture_buffers));
 
+#ifndef EMU
     capture_dma_timer = dma_claim_unused_timer(true);
     uint32_t system_hz = clock_get_hz(clk_sys);
     uint32_t denominator = system_hz / SYNTH_SAMPLE_RATE;
@@ -76,6 +88,7 @@ void raw_capture_init(void) {
     irq_set_exclusive_handler(DMA_IRQ_1, capture_dma_irq);
     irq_set_enabled(DMA_IRQ_1, true);
     dma_start_channel_mask(1u << (uint)capture_dma_channels[0]);
+#endif
 }
 
 bool raw_capture_copy_latest(uint32_t *destination, uint32_t frame_count) {

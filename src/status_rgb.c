@@ -5,9 +5,13 @@
 #include <string.h>
 
 #include "board_pins.h"
+#ifndef EMU
 #include "hardware/clocks.h"
+#endif
 #include "hardware/gpio.h"
+#ifndef EMU
 #include "hardware/pio.h"
+#endif
 #include "pico/time.h"
 #include "rgb_tx.pio.h"
 
@@ -29,7 +33,9 @@ typedef struct {
     uint8_t blue;
 } rgb_t;
 
+#ifndef EMU
 static PIO rgb_pio = pio1;
+#endif
 static const uint rgb_sm = 0;
 static rgb_t pixels[RGB_LED_COUNT];
 static rgb_t last_sent_pixels[RGB_LED_COUNT];
@@ -177,16 +183,21 @@ static void flush(void) {
     if (frame_sent && memcmp(pixels, last_sent_pixels, sizeof(pixels)) == 0) {
         return;
     }
+#ifndef EMU
+// TODO
     for (unsigned pixel = 0; pixel < RGB_LED_COUNT; ++pixel) {
         pio_sm_put_blocking(rgb_pio, rgb_sm, pack_grb(pixels[pixel]));
     }
+#endif
     memcpy(last_sent_pixels, pixels, sizeof(pixels));
     frame_sent = true;
 }
 
 void status_rgb_init(void) {
+#ifndef EMU
     uint offset = (uint)pio_add_program(rgb_pio, &rgb_tx_program);
     rgb_tx_program_init(rgb_pio, rgb_sm, offset, PIN_RGB_DATA, 800000.0f);
+#endif
     gpio_set_drive_strength(PIN_RGB_DATA, GPIO_DRIVE_STRENGTH_2MA);
     gpio_set_slew_rate(PIN_RGB_DATA, GPIO_SLEW_RATE_SLOW);
     render_rings((rgb_t){0, 0, 0}, 0, 0);

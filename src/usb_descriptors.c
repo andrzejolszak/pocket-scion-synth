@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#ifndef EMU
 #include "tusb.h"
 
 static const tusb_desc_device_t device_descriptor = {
@@ -72,3 +73,4 @@ const uint16_t *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
                                       (2u * count + 2u));
     return string_descriptor;
 }
+#endif

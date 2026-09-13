@@ -16,7 +16,8 @@
 using boolean = bool;
 uint8_t g_midi_ch = 0;
 #define PRA32_U_USE_2_CORES_FOR_SIGNAL_PROCESSING
-#include "pra32-u-synth.h"
+#include "pra32-u-constants.h"
+// #include "pra32-u-synth.h"
 
 static FAUSTFLOAT faust_output[256];
 
@@ -24,7 +25,7 @@ namespace {
 
 // Full PRA32-U engine. The hot render path and lookup tables remain in SRAM;
 // chorus and stereo/ping-pong delay are enabled again after timing validation.
-PRA32_U_Synth<false> engine;
+// PRA32_U_Synth<false> engine;
 
 ScionFaustOsc faust_osc;
 
@@ -506,14 +507,31 @@ int16_t scale_sample(int16_t sample, int32_t gain_q15) {
 
 void __not_in_flash_func(core1_entry)() {
     for (;;) {
-        if (!engine.secondary_core_process()) {
-            tight_loop_contents();
-        }
+        // if (!engine.secondary_core_process()) {
+        //     tight_loop_contents();
+        // }
+
+        // TODO:
+        //if (audio_buffer_ready()) {
+        //    process_midi_queue();
+        //    update_faust_parameters();
+        //
+        //    faust_dsp->compute(
+        //        BLOCK_SIZE,
+        //        nullptr,
+        //        outputs
+        //    );
+        //
+        //    submit_audio_buffer();
+        //}
+
+        tight_loop_contents();
     }
 }
 
 void apply_scene(uint8_t index) {
     const scene_t scene = make_scene(index);
+    /*
     engine.control_change(OSC_1_WAVE, scene.osc1_wave);
     engine.control_change(OSC_1_SHAPE, scene.osc1_shape);
     engine.control_change(OSC_1_MORPH, scene.osc1_morph);
@@ -563,7 +581,7 @@ void apply_scene(uint8_t index) {
     engine.control_change(DELAY_MODE, scene.delay_mode);
     engine.control_change(MODULATION, 0);
     engine.control_change(BTH_CONTROLLER, 0);
-    engine.pitch_bend(0, 64);
+    engine.pitch_bend(0, 64);*/
 }
 
 int allocate_note_slot(synth_t *synth) {
@@ -613,7 +631,7 @@ bool start_note(synth_t *synth, uint8_t note, uint8_t velocity,
     synth->notes[slot].midi_channel = midi_channel;
     synth->notes[slot].frames_left = duration_frames;
     synth->notes[slot].active = 1;
-    engine.note_on(note, velocity);
+//    engine.note_on(note, velocity);
     midi_note_on(midi_channel, note, velocity);
     ++synth->note_on_counter;
     return true;
@@ -656,8 +674,8 @@ void fire_ratchet(synth_t *synth, const synth_ratchet_event_t &event) {
         synth_note_t &voice = synth->notes[i];
         if (!voice.active || voice.note != event.note ||
             voice.midi_channel != event.midi_channel) continue;
-        engine.note_off(event.note);
-        engine.note_on(event.note, event.velocity);
+//        engine.note_off(event.note);
+//        engine.note_on(event.note, event.velocity);
         midi_note_off(event.midi_channel, event.note);
         midi_note_on(event.midi_channel, event.note, event.velocity);
         voice.frames_left = event.duration_frames;
@@ -676,7 +694,7 @@ void fire_ratchet(synth_t *synth, const synth_ratchet_event_t &event) {
     voice.midi_channel = event.midi_channel;
     voice.frames_left = event.duration_frames;
     voice.active = 1u;
-    engine.note_on(event.note, event.velocity);
+//    engine.note_on(event.note, event.velocity);
     midi_note_on(event.midi_channel, event.note, event.velocity);
     ++synth->ratchet_fire_counter;
 }
@@ -702,7 +720,7 @@ void service_note_durations(synth_t *synth) {
         if (!note.active) continue;
         if (note.frames_left > 0u) --note.frames_left;
         if (note.frames_left == 0u) {
-            engine.note_off(note.note);
+//            engine.note_off(note.note);
             note.active = 0;
             note.midi_note_off_pending = 1;
         }
@@ -725,7 +743,7 @@ void synth_init(synth_t *synth) {
     synth->volume_index = 7;
     synth->duration_index = 3;
     synth->master_gain_q15 = volume_gain_q15[synth->volume_index];
-    engine.initialize();
+//    engine.initialize();
     apply_scene(0);
     multicore_launch_core1(core1_entry);
     faust_osc.init(SYNTH_SAMPLE_RATE);
@@ -829,7 +847,7 @@ static void select_program(synth_t *synth, uint8_t bank, uint8_t program) {
         synth->ratchets[i].active = 0u;
     }
     synth->next_ratchet_frame = 0u;
-    engine.control_change(ALL_NOTES_OFF, 0);
+//    engine.control_change(ALL_NOTES_OFF, 0);
     for (unsigned i = 0; i < SYNTH_VOICE_COUNT; ++i) {
         if (synth->notes[i].active || synth->notes[i].midi_note_off_pending) {
             if (!synth->raw_mode) {
@@ -863,7 +881,7 @@ void synth_next_bank(synth_t *synth) {
 void synth_toggle_pitch_bend(synth_t *synth) {
     synth->pitch_bend_enabled ^= 1u;
     if (!synth->pitch_bend_enabled) {
-        engine.pitch_bend(0, 64);
+//        engine.pitch_bend(0, 64);
         if (!synth->raw_mode) for_each_midi_channel(synth, [](uint8_t channel) {
             midi_pitch_bend(channel, 8192u);
         });
@@ -871,7 +889,7 @@ void synth_toggle_pitch_bend(synth_t *synth) {
 }
 
 void synth_toggle_midi_mode(synth_t *synth) {
-    engine.control_change(ALL_NOTES_OFF, 0);
+//    engine.control_change(ALL_NOTES_OFF, 0);
     if (!synth->raw_mode) for_each_midi_channel(synth, [](uint8_t channel) {
         midi_control_change(channel, 123, 0);
     });
@@ -894,7 +912,7 @@ void synth_toggle_midi_mode(synth_t *synth) {
 void synth_toggle_raw_mode(synth_t *synth) {
     bool enabling = synth->raw_mode == 0u;
     if (enabling) midi_discard_pending();
-    engine.control_change(ALL_NOTES_OFF, 0);
+//    engine.control_change(ALL_NOTES_OFF, 0);
     for (unsigned i = 0; i < SYNTH_VOICE_COUNT; ++i) {
         synth_note_t &note = synth->notes[i];
         if (enabling && (note.active || note.midi_note_off_pending)) {
@@ -956,36 +974,36 @@ void synth_sensor_window(synth_t *synth, const sensor_stats_t *stats) {
         breath_source * static_cast<float>(route.breath_max)));
     uint8_t modulation = clamp_u7(static_cast<int>(
         synth->sensor_expression * static_cast<float>(route.modulation_max)));
-    engine.control_change(BTH_CONTROLLER, breath);
-    engine.control_change(MODULATION, modulation);
+//     engine.control_change(BTH_CONTROLLER, breath);
+//     engine.control_change(MODULATION, modulation);
 
     // The three transient-oriented programs span a wider envelope range under
     // the plant. Values are deliberately distinct rather than sharing one
     // generic movement-to-length mapping.
-    if (bank <= 1u && patch == 4u) {  // Glass: proximity blooms sustain and release.
-        engine.control_change(AMP_DECAY, clamp_u7(42 + static_cast<int>(
-            synth->sensor_expression * 48.0f)));
-        engine.control_change(AMP_SUSTAIN, clamp_u7(38 + static_cast<int>(
-            synth->sensor_proximity * 72.0f)));
-        engine.control_change(AMP_RELEASE, clamp_u7(58 + static_cast<int>(
-            synth->sensor_proximity * 52.0f)));
-    } else if (bank <= 1u && patch == 8u) {  // Acid: stab to tied phrase.
-        engine.control_change(AMP_DECAY, clamp_u7(40 + static_cast<int>(
-            synth->sensor_expression * 62.0f)));
-        engine.control_change(AMP_SUSTAIN, clamp_u7(48 + static_cast<int>(
-            synth->sensor_expression * 51.0f)));
-        engine.control_change(AMP_RELEASE, clamp_u7(32 + static_cast<int>(
-            synth->sensor_proximity * 62.0f)));
-    } else if (bank <= 1u && patch == 13u) {  // Percussion: spread grows tail.
-        float spread_envelope = clampf(
-            static_cast<float>(stats->delta_us) / 60000.0f, 0.0f, 1.0f);
-        engine.control_change(AMP_DECAY, clamp_u7(34 + static_cast<int>(
-            synth->sensor_proximity * 58.0f)));
-        engine.control_change(AMP_SUSTAIN, clamp_u7(18 + static_cast<int>(
-            synth->sensor_expression * 54.0f)));
-        engine.control_change(AMP_RELEASE, clamp_u7(30 + static_cast<int>(
-            spread_envelope * 74.0f)));
-    }
+//    if (bank <= 1u && patch == 4u) {  // Glass: proximity blooms sustain and release.
+//        engine.control_change(AMP_DECAY, clamp_u7(42 + static_cast<int>(
+//            synth->sensor_expression * 48.0f)));
+//        engine.control_change(AMP_SUSTAIN, clamp_u7(38 + static_cast<int>(
+//            synth->sensor_proximity * 72.0f)));
+//        engine.control_change(AMP_RELEASE, clamp_u7(58 + static_cast<int>(
+//            synth->sensor_proximity * 52.0f)));
+//    } else if (bank <= 1u && patch == 8u) {  // Acid: stab to tied phrase.
+//        engine.control_change(AMP_DECAY, clamp_u7(40 + static_cast<int>(
+//            synth->sensor_expression * 62.0f)));
+//        engine.control_change(AMP_SUSTAIN, clamp_u7(48 + static_cast<int>(
+//            synth->sensor_expression * 51.0f)));
+//        engine.control_change(AMP_RELEASE, clamp_u7(32 + static_cast<int>(
+//            synth->sensor_proximity * 62.0f)));
+//    } else if (bank <= 1u && patch == 13u) {  // Percussion: spread grows tail.
+//        float spread_envelope = clampf(
+//            static_cast<float>(stats->delta_us) / 60000.0f, 0.0f, 1.0f);
+//        engine.control_change(AMP_DECAY, clamp_u7(34 + static_cast<int>(
+//            synth->sensor_proximity * 58.0f)));
+//        engine.control_change(AMP_SUSTAIN, clamp_u7(18 + static_cast<int>(
+//            synth->sensor_expression * 54.0f)));
+//        engine.control_change(AMP_RELEASE, clamp_u7(30 + static_cast<int>(
+//            spread_envelope * 74.0f)));
+//    }
     float base_bend_span = scene.pitch_bend_range >= 24u ? 4095.0f : 1536.0f;
     int bend_span = static_cast<int>(base_bend_span * route.bend_scale);
     int bend_value = 8192 + static_cast<int>(
@@ -993,13 +1011,13 @@ void synth_sensor_window(synth_t *synth, const sensor_stats_t *stats) {
     if (bend_value < 0) bend_value = 0;
     if (bend_value > 16383) bend_value = 16383;
     if (pitch_bend_enabled) {
-        engine.pitch_bend(static_cast<uint8_t>(bend_value & 127),
-                          static_cast<uint8_t>(bend_value >> 7));
+//        engine.pitch_bend(static_cast<uint8_t>(bend_value & 127),
+//                          static_cast<uint8_t>(bend_value >> 7));
         for_each_midi_channel(synth, [bend_value](uint8_t channel) {
             midi_pitch_bend(channel, static_cast<uint16_t>(bend_value));
         });
     } else {
-        engine.pitch_bend(0, 64);
+//        engine.pitch_bend(0, 64);
     }
 
     const uint32_t now = synth->transport_frame;
@@ -1079,10 +1097,10 @@ void synth_sensor_window(synth_t *synth, const sensor_stats_t *stats) {
         static_cast<int>((synth->sensor_expression - 0.5f) * route.morph_range));
     uint8_t lfo_rate = clamp_u7(scene.lfo_rate +
         static_cast<int>(synth->sensor_expression * route.lfo_rate_range));
-    engine.control_change(FILTER_CUTOFF, cutoff);
-    engine.control_change(FILTER_RESO, resonance);
-    engine.control_change(OSC_1_MORPH, morph);
-    engine.control_change(LFO_RATE, lfo_rate);
+//     engine.control_change(FILTER_CUTOFF, cutoff);
+//     engine.control_change(FILTER_RESO, resonance);
+//     engine.control_change(OSC_1_MORPH, morph);
+//     engine.control_change(LFO_RATE, lfo_rate);
 
     const unsigned degrees[3] = {
         static_cast<unsigned>((bar + step / 4u) % 4u),

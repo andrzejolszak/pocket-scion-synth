@@ -6,7 +6,10 @@
 #include "hardware/gpio.h"
 #include "hardware/uart.h"
 #include "pico/platform.h"
+#ifndef EMU
 #include "tusb.h"
+#endif // !EMU
+
 
 #define MIDI_UART uart0
 #define MIDI_QUEUE_CAPACITY 128u
@@ -42,11 +45,13 @@ void midi_uart_init(void) {
     uart_set_format(MIDI_UART, 8, 1, UART_PARITY_NONE);
     uart_set_fifo_enabled(MIDI_UART, true);
 
+#ifndef EMU
     tusb_rhport_init_t device = {
         .role = TUSB_ROLE_DEVICE,
         .speed = TUSB_SPEED_AUTO,
     };
     tusb_init(0u, &device);
+#endif
 }
 
 void midi_service(void) {
