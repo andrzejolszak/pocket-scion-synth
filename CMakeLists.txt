@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
+
 set(PICO_BOARD_HEADER_DIRS ${CMAKE_CURRENT_LIST_DIR}/boards)
 set(PICO_BOARD pocket_scion CACHE STRING "Pocket SCION board")
 
@@ -44,6 +45,9 @@ pico_generate_pio_header(pocket_scion_synth
     ${CMAKE_CURRENT_LIST_DIR}/pio/rgb_tx.pio
 )
 
+target_include_directories(pocket_scion_synth PRIVATE
+    "C:/Program Files/Faust/include"
+)
 target_include_directories(pocket_scion_synth PRIVATE src)
 target_include_directories(pocket_scion_synth SYSTEM PRIVATE vendor/pra32-u)
 target_compile_options(pocket_scion_synth PRIVATE

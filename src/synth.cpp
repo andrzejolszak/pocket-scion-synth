@@ -9,17 +9,24 @@
 #include "pico/platform.h"
 #include "raw_capture.h"
 
+#include <faust/dsp/dsp.h>
+#include "faust_osc.h"
+
 // PRA32-U uses Arduino's boolean alias in its otherwise portable DSP headers.
 using boolean = bool;
 uint8_t g_midi_ch = 0;
 #define PRA32_U_USE_2_CORES_FOR_SIGNAL_PROCESSING
 #include "pra32-u-synth.h"
 
+static FAUSTFLOAT faust_output[256];
+
 namespace {
 
 // Full PRA32-U engine. The hot render path and lookup tables remain in SRAM;
 // chorus and stereo/ping-pong delay are enabled again after timing validation.
 PRA32_U_Synth<false> engine;
+
+ScionFaustOsc faust_osc;
 
 constexpr float sensitivity_values[] = {
     2.0f, 2.5f, 3.0f, 3.5f, 4.0f, 5.0f, 6.5f, 8.0f
@@ -721,6 +728,7 @@ void synth_init(synth_t *synth) {
     engine.initialize();
     apply_scene(0);
     multicore_launch_core1(core1_entry);
+    faust_osc.init(SYNTH_SAMPLE_RATE);
 }
 
 void synth_startup_chord(synth_t *synth) {
@@ -960,12 +968,12 @@ void synth_sensor_window(synth_t *synth, const sensor_stats_t *stats) {
         engine.control_change(AMP_SUSTAIN, clamp_u7(38 + static_cast<int>(
             synth->sensor_proximity * 72.0f)));
         engine.control_change(AMP_RELEASE, clamp_u7(58 + static_cast<int>(
-            synth->sensor_proximity * 58.0f)));
+            synth->sensor_proximity * 52.0f)));
     } else if (bank <= 1u && patch == 8u) {  // Acid: stab to tied phrase.
         engine.control_change(AMP_DECAY, clamp_u7(40 + static_cast<int>(
             synth->sensor_expression * 62.0f)));
         engine.control_change(AMP_SUSTAIN, clamp_u7(48 + static_cast<int>(
-            synth->sensor_expression * 58.0f)));
+            synth->sensor_expression * 51.0f)));
         engine.control_change(AMP_RELEASE, clamp_u7(32 + static_cast<int>(
             synth->sensor_proximity * 62.0f)));
     } else if (bank <= 1u && patch == 13u) {  // Percussion: spread grows tail.
@@ -1174,18 +1182,27 @@ void __not_in_flash_func(synth_render)(synth_t *synth,
         synth->transport_frame += frame_count;
         return;
     }
+
+    FAUSTFLOAT *outputs[1] = {faust_output};
+    faust_osc.compute(static_cast<int>(frame_count), nullptr, outputs);
+
+    int16_t left = 0;
     for (uint32_t frame = 0; frame < frame_count; ++frame) {
-        service_ratchets(synth, synth->transport_frame + frame);
-        service_note_durations(synth);
-        int16_t right = 0;
-        int16_t left = engine.process(0, right);
-        left = scale_sample(left, synth->master_gain_q15);
-        right = scale_sample(right, synth->master_gain_q15);
+        float sample = faust_output[frame];
+        int32_t value = static_cast<int32_t>(sample * 32767.0f);
+
+        if (value > 32767)
+            value = 32767;
+        else if (value < -32768)
+            value = -32768;
+
+        left = static_cast<int16_t>(value);
+        int16_t right = left;
         stereo_frames[frame] = (static_cast<uint32_t>(static_cast<uint16_t>(left)) << 16) |
             static_cast<uint16_t>(right);
     }
-    synth->visual_amp_envelope = engine.get_amp_envelope_output();
-    synth->visual_lfo = engine.get_lfo_output();
+    synth->visual_amp_envelope = left;
+    synth->visual_lfo = left;
     synth->transport_frame += frame_count;
 }
 

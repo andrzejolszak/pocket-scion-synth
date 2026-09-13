@@ -14,3 +14,4 @@ cmake-build-*/
 # Keep the curated release UF2, ignore ad-hoc build copies.
 *.uf2
 !releases/*.uf2
+/.vs
