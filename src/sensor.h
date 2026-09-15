@@ -23,3 +23,7 @@ void sensor_analyze_intervals(
     sensor_stats_t *out
 );
 uint32_t sensor_dropped_edges(void);
+
+#ifdef EMU
+uint32_t time_us_32();
+#endif

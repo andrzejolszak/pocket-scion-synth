@@ -3,10 +3,10 @@
 #include <stdbool.h>
 
 #include "board_pins.h"
+#ifndef EMU
 #include "hardware/gpio.h"
 #include "hardware/uart.h"
 #include "pico/platform.h"
-#ifndef EMU
 #include "tusb.h"
 #endif // !EMU
 
@@ -25,8 +25,12 @@ static midi_event_t queue[MIDI_QUEUE_CAPACITY];
 static uint8_t queue_read;
 static uint8_t queue_write;
 
-static void __not_in_flash_func(enqueue)(uint8_t status, uint8_t data1,
-                                         uint8_t data2, uint8_t length) {
+#ifndef EMU
+static void __not_in_flash_func(enqueue)
+#else
+static void enqueue
+#endif
+    (uint8_t status, uint8_t data1, uint8_t data2, uint8_t length) {
     uint8_t next = (uint8_t)((queue_write + 1u) % MIDI_QUEUE_CAPACITY);
     if (next == queue_read) return;
     midi_event_t *event = &queue[queue_write];
@@ -40,12 +44,12 @@ static void __not_in_flash_func(enqueue)(uint8_t status, uint8_t data1,
 }
 
 void midi_uart_init(void) {
+#ifndef EMU
     uart_init(MIDI_UART, 31250u);
     gpio_set_function(PIN_MIDI_TX, GPIO_FUNC_UART);
     uart_set_format(MIDI_UART, 8, 1, UART_PARITY_NONE);
     uart_set_fifo_enabled(MIDI_UART, true);
 
-#ifndef EMU
     tusb_rhport_init_t device = {
         .role = TUSB_ROLE_DEVICE,
         .speed = TUSB_SPEED_AUTO,
@@ -55,6 +59,8 @@ void midi_uart_init(void) {
 }
 
 void midi_service(void) {
+        // TODO
+#ifndef EMU
     tud_task();
 
     // A MIDI descriptor necessarily includes a host-to-device endpoint. Drain
@@ -86,22 +92,36 @@ void midi_service(void) {
         if (event->uart_index < event->length) return;
         queue_read = (uint8_t)((queue_read + 1u) % MIDI_QUEUE_CAPACITY);
     }
+#endif
 }
 
 bool midi_usb_mounted(void) {
+#ifndef EMU
     return tud_midi_mounted();
+#else
+    return false;
+#endif
 }
 
 void midi_discard_pending(void) {
     queue_read = queue_write;
 }
 
-void __not_in_flash_func(midi_note_on)(uint8_t channel, uint8_t note,
-                                      uint8_t velocity) {
+#ifndef EMU
+void __not_in_flash_func(midi_note_on)
+#else
+void midi_note_on
+#endif
+    (uint8_t channel, uint8_t note, uint8_t velocity) {
     enqueue((uint8_t)(0x90u | (channel & 0x0fu)), note, velocity, 3u);
 }
 
-void __not_in_flash_func(midi_note_off)(uint8_t channel, uint8_t note) {
+#ifndef EMU
+void __not_in_flash_func(midi_note_off)
+#else
+void midi_note_off
+#endif
+    (uint8_t channel, uint8_t note) {
     enqueue((uint8_t)(0x80u | (channel & 0x0fu)), note, 0u, 3u);
 }
 

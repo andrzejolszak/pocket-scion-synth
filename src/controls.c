@@ -1,8 +1,12 @@
 #include "controls.h"
 
 #include "board_pins.h"
+
+#ifndef EMU
 #include "hardware/gpio.h"
 #include "pico/time.h"
+#endif // !EMU
+
 
 #define BUTTON_COUNT 5u
 #define SENS_DOWN_INDEX 0u
@@ -65,6 +69,7 @@ static control_event_t event_for_button(unsigned index, bool modified) {
 }
 
 void controls_init(void) {
+#ifndef EMU
     for (unsigned i = 0; i < BUTTON_COUNT; ++i) {
         gpio_init(buttons[i].pin);
         gpio_set_dir(buttons[i].pin, GPIO_IN);
@@ -77,7 +82,19 @@ void controls_init(void) {
     gpio_set_dir(PIN_AUX_ACTIVE_HIGH, GPIO_IN);
     gpio_disable_pulls(PIN_AUX_ACTIVE_HIGH);
     next_scan_us = time_us_32();
+#endif
 }
+
+// TODO
+#ifdef EMU
+uint32_t time_us_32() {
+    return 0;
+}
+
+bool gpio_get(uint8_t pin) {
+    return false;
+}
+#endif
 
 control_event_t controls_poll(void) {
     uint32_t now = time_us_32();

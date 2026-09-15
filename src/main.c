@@ -13,7 +13,11 @@
 #endif // !EMU
 
 #include "midi_uart.h"
+
+#ifndef EMU
 #include "pico/stdlib.h"
+#endif // !EMU
+
 #include "raw_capture.h"
 #include "sensor.h"
 #include "status_rgb.h"
@@ -93,7 +97,9 @@ static void apply_control(control_event_t event) {
 }
 
 int main(void) {
+#ifndef EMU
     set_sys_clock_khz(153600u, true);
+#endif
     synth_init(&synth);
     controls_init();
     midi_uart_init();
@@ -106,7 +112,6 @@ int main(void) {
     status_rgb_init();
     show_program_state();
     synth_startup_chord(&synth);
-
     for (;;) {
         midi_service();
         bool usb_midi_is_mounted = midi_usb_mounted();
@@ -123,8 +128,8 @@ int main(void) {
             continue;
         }
 #else
-        uint32_t* audio_frames;
         // TODO
+        uint32_t audio_frames[AUDIO_FRAMES_PER_BUFFER];
             synth_render(&synth, audio_frames, AUDIO_FRAMES_PER_BUFFER);
             continue;
 #endif
@@ -158,6 +163,8 @@ int main(void) {
                            synth.ratchet_fire_counter,
                            synth.visual_amp_envelope, synth.visual_lfo);
 
+#ifndef EMU
         tight_loop_contents();
+#endif
     }
 }

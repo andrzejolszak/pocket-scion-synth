@@ -3,9 +3,12 @@
 #include <string.h>
 
 #include "board_pins.h"
+
+#ifndef EMU
 #include "hardware/gpio.h"
 #include "hardware/sync.h"
 #include "pico/time.h"
+#endif
 
 #define EDGE_QUEUE_SIZE 32u
 #define WINDOW_SIZE 10u
@@ -22,7 +25,12 @@ static uint32_t last_timestamp;
 static bool have_last_timestamp;
 static bool window_ready;
 
-static void sensor_gpio_irq(uint gpio, uint32_t events) {
+// TODO
+#ifdef EMU
+void __compiler_memory_barrier() {}
+#endif
+
+static void sensor_gpio_irq(unsigned int gpio, uint32_t events) {
     (void)gpio;
     (void)events;
     uint8_t head = edge_head;
@@ -36,8 +44,10 @@ static void sensor_gpio_irq(uint gpio, uint32_t events) {
     edge_head = next;
 }
 
+
 void sensor_init(void) {
     memset(intervals, 0, sizeof(intervals));
+#ifndef EMU
     gpio_init(PIN_SENSOR);
     gpio_set_dir(PIN_SENSOR, GPIO_IN);
     gpio_disable_pulls(PIN_SENSOR);
@@ -47,6 +57,7 @@ void sensor_init(void) {
         true,
         sensor_gpio_irq
     );
+#endif
 }
 
 void sensor_service(void) {
@@ -85,10 +96,13 @@ bool sensor_take_window(sensor_stats_t *out, float sensitivity) {
     }
 
     uint32_t local[WINDOW_SIZE];
+
+#ifndef EMU
     uint32_t irq_state = save_and_disable_interrupts();
     memcpy(local, intervals, sizeof(local));
     window_ready = false;
     restore_interrupts(irq_state);
+#endif
 
     sensor_analyze_intervals(local, sensitivity, out);
     return true;

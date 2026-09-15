@@ -58,20 +58,19 @@ else()
         -Wall -Wextra -Wshadow -Wconversion
     )
     target_compile_definitions(pocket_scion_synth PRIVATE SCION_RGB_OUTPUT_ENABLED=1)
+    target_link_libraries(pocket_scion_synth PRIVATE
+        pico_stdlib
+        hardware_clocks
+        hardware_dma
+        hardware_gpio
+        hardware_irq
+        hardware_pio
+        hardware_uart
+        pico_multicore
+        tinyusb_device
+        m
+    )
 endif()
-
-target_link_libraries(pocket_scion_synth PRIVATE
-    pico_stdlib
-    hardware_clocks
-    hardware_dma
-    hardware_gpio
-    hardware_irq
-    hardware_pio
-    hardware_uart
-    pico_multicore
-    tinyusb_device
-    m
-)
 
 pico_enable_stdio_usb(pocket_scion_synth 0)
 pico_enable_stdio_uart(pocket_scion_synth 0)

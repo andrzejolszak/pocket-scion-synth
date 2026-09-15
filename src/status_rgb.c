@@ -7,13 +7,11 @@
 #include "board_pins.h"
 #ifndef EMU
 #include "hardware/clocks.h"
-#endif
 #include "hardware/gpio.h"
-#ifndef EMU
 #include "hardware/pio.h"
-#endif
 #include "pico/time.h"
 #include "rgb_tx.pio.h"
+#endif
 
 #ifndef SCION_RGB_OUTPUT_ENABLED
 #define SCION_RGB_OUTPUT_ENABLED 1
@@ -36,7 +34,7 @@ typedef struct {
 #ifndef EMU
 static PIO rgb_pio = pio1;
 #endif
-static const uint rgb_sm = 0;
+static const unsigned int rgb_sm = 0;
 static rgb_t pixels[RGB_LED_COUNT];
 static rgb_t last_sent_pixels[RGB_LED_COUNT];
 static bool frame_sent;
@@ -197,13 +195,13 @@ void status_rgb_init(void) {
 #ifndef EMU
     uint offset = (uint)pio_add_program(rgb_pio, &rgb_tx_program);
     rgb_tx_program_init(rgb_pio, rgb_sm, offset, PIN_RGB_DATA, 800000.0f);
-#endif
     gpio_set_drive_strength(PIN_RGB_DATA, GPIO_DRIVE_STRENGTH_2MA);
     gpio_set_slew_rate(PIN_RGB_DATA, GPIO_SLEW_RATE_SLOW);
     render_rings((rgb_t){0, 0, 0}, 0, 0);
     flush();
     sleep_us(400u);
     next_frame_us = time_us_32();
+#endif
 }
 
 void status_rgb_show_level(status_rgb_colour_t colour,

@@ -5,8 +5,12 @@
 #include <cstring>
 
 #include "midi_uart.h"
+
+#ifndef EMU
 #include "pico/multicore.h"
 #include "pico/platform.h"
+#endif
+
 #include "raw_capture.h"
 
 #include <faust/dsp/dsp.h>
@@ -505,7 +509,12 @@ int16_t scale_sample(int16_t sample, int32_t gain_q15) {
     return static_cast<int16_t>(scaled);
 }
 
-void __not_in_flash_func(core1_entry)() {
+#ifndef EMU
+void __not_in_flash_func(core1_entry)
+#else
+void core1_entry
+#endif
+    () {
     for (;;) {
         // if (!engine.secondary_core_process()) {
         //     tight_loop_contents();
@@ -525,7 +534,9 @@ void __not_in_flash_func(core1_entry)() {
         //    submit_audio_buffer();
         //}
 
+#ifndef EMU
         tight_loop_contents();
+#endif
     }
 }
 
@@ -745,7 +756,8 @@ void synth_init(synth_t *synth) {
     synth->master_gain_q15 = volume_gain_q15[synth->volume_index];
 //    engine.initialize();
     apply_scene(0);
-    multicore_launch_core1(core1_entry);
+    // TODO:
+    // multicore_launch_core1(core1_entry);
     faust_osc.init(SYNTH_SAMPLE_RATE);
 }
 
@@ -1173,9 +1185,12 @@ void synth_sensor_window(synth_t *synth, const sensor_stats_t *stats) {
     });
 }
 
-void __not_in_flash_func(synth_render)(synth_t *synth,
-                                      uint32_t *stereo_frames,
-                                      uint32_t frame_count) {
+#ifndef EMU
+void __not_in_flash_func(synth_render)
+#else
+void synth_render
+#endif
+    (synth_t *synth, uint32_t *stereo_frames, uint32_t frame_count) {
     if (synth->raw_mode) {
         bool captured = raw_capture_copy_latest(stereo_frames, frame_count);
         for (uint32_t frame = 0; frame < frame_count; ++frame) {
@@ -1202,7 +1217,7 @@ void __not_in_flash_func(synth_render)(synth_t *synth,
     }
 
     FAUSTFLOAT *outputs[1] = {faust_output};
-    faust_osc.compute(static_cast<int>(frame_count), nullptr, outputs);
+    faust_osc.compute(static_cast<int>(frame_count), outputs, outputs);
 
     int16_t left = 0;
     for (uint32_t frame = 0; frame < frame_count; ++frame) {

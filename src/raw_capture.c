@@ -6,12 +6,10 @@
 #ifndef EMU
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
-#endif // !EMU
 #include "hardware/irq.h"
-#ifndef EMU
 #include "hardware/structs/io_bank0.h"
-#endif
 #include "hardware/sync.h"
+#endif
 #include "synth.h"
 
 #define RAW_CAPTURE_BUFFER_COUNT 2u
@@ -31,20 +29,20 @@ static void capture_dma_irq(void) {
     uint32_t status = 0;
 #endif
     for (unsigned i = 0; i < RAW_CAPTURE_BUFFER_COUNT; ++i) {
+#ifndef EMU
         uint32_t bit = 1u << (uint)capture_dma_channels[i];
         if (!(status & bit)) continue;
 
-#ifndef EMU
         dma_hw->ints1 = bit;
-#endif
         completed_buffer = (uint8_t)i;
         capture_ready = true;
 
         // The other channel is now collecting the next window. Rearm this
         // channel before it is chained again 256 samples later.
-        uint channel = (uint)capture_dma_channels[i];
+        unsigned int channel = (unsigned int)capture_dma_channels[i];
         dma_channel_set_write_addr(channel, capture_buffers[i], false);
         dma_channel_set_trans_count(channel, RAW_CAPTURE_FRAME_COUNT, false);
+#endif
     }
 }
 
@@ -94,6 +92,8 @@ void raw_capture_init(void) {
 bool raw_capture_copy_latest(uint32_t *destination, uint32_t frame_count) {
     if (frame_count > RAW_CAPTURE_FRAME_COUNT) return false;
 
+// TODO:
+#ifndef EMU
     uint32_t irq_state = save_and_disable_interrupts();
     bool ready = capture_ready;
     unsigned index = completed_buffer;
@@ -102,5 +102,6 @@ bool raw_capture_copy_latest(uint32_t *destination, uint32_t frame_count) {
 
     memcpy(destination, capture_buffers[index],
            frame_count * sizeof(destination[0]));
+#endif // !EMU
     return true;
 }
