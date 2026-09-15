@@ -112,7 +112,7 @@ class ScionFaustOsc : public dsp {
 		FAUSTFLOAT* output0 = outputs[0];
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 			iVec0[0] = 1;
-			float fTemp0 = ((1 - iVec0[1]) ? 0.0f : fRec0[1] + fConst1 * static_cast<float>(input0[i0]));
+			float fTemp0 = ((1 - iVec0[1]) ? 0.0f : fRec0[1] + fConst1 * static_cast<float>(i0));
 			fRec0[0] = fTemp0 - std::floor(fTemp0);
 			output0[i0] = static_cast<FAUSTFLOAT>(std::sin(fConst2 * fRec0[0]));
 			iVec0[1] = iVec0[0];

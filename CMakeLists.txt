@@ -52,7 +52,14 @@ target_include_directories(pocket_scion_synth PRIVATE
 target_include_directories(pocket_scion_synth PRIVATE src)
 
 if (MSVC)
+    target_include_directories(pocket_scion_synth PRIVATE src/portaudio/include)
     target_compile_definitions(pocket_scion_synth PRIVATE SCION_RGB_OUTPUT_ENABLED=1 EMU)
+    target_link_libraries(pocket_scion_synth PRIVATE ./../../../src/portaudio/lib/portaudio_x64)
+    add_custom_command(TARGET pocket_scion_synth POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ./../../../src/portaudio/lib/portaudio_x64.dll
+            .
+    )
 else()
     target_compile_options(pocket_scion_synth PRIVATE
         -Wall -Wextra -Wshadow -Wconversion

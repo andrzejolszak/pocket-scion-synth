@@ -1216,7 +1216,7 @@ void synth_render
         return;
     }
 
-    FAUSTFLOAT *outputs[1] = {faust_output};
+    float *outputs[1] = {faust_output};
     faust_osc.compute(static_cast<int>(frame_count), outputs, outputs);
 
     int16_t left = 0;

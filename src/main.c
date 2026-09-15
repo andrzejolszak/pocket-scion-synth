@@ -3,6 +3,8 @@
 #ifndef EMU
 #include "audio_i2s.h"
 #else
+#include <stdio.h>
+#include <portaudio.h>
 #define AUDIO_FRAMES_PER_BUFFER 256u
 #endif
 
@@ -25,6 +27,27 @@
 
 static synth_t synth;
 static bool usb_midi_was_mounted;
+
+#ifdef EMU
+#define FS 32000
+static PaStream* stream;
+static PaError err;
+void paerror(const char* e) {
+    printf("PortAudio error: %s-> %s\n", e, Pa_GetErrorText(err));
+    exit(1);
+}
+
+int pacb(const void* input,
+    int32_t* output,
+    unsigned long frameCount,
+    const PaStreamCallbackTimeInfo* timeInfo,
+    PaStreamCallbackFlags statusFlags,
+    void* userData) 
+{
+    synth_render(&synth, output, AUDIO_FRAMES_PER_BUFFER);
+    return 0;
+}
+#endif
 
 static void show_program_state(void) {
     if (synth.raw_mode) {
@@ -112,6 +135,27 @@ int main(void) {
     status_rgb_init();
     show_program_state();
     synth_startup_chord(&synth);
+
+#ifdef EMU
+    if (Pa_Initialize() != paNoError)
+        paerror("init");
+    //		wavfile = fopen("out.wav", "wb");
+    err = Pa_OpenDefaultStream(&stream, 2, 2, paInt32, FS, AUDIO_FRAMES_PER_BUFFER, pacb, NULL);
+    if (err != paNoError)
+    {
+        // second attempt.. now without input! 
+        err = Pa_OpenDefaultStream(&stream, 0, 2, paInt32, FS, AUDIO_FRAMES_PER_BUFFER, pacb, NULL);
+        if (err != paNoError)
+        {
+            paerror("open");
+        }
+    }
+
+    err = Pa_StartStream(stream);
+    if (err != paNoError)
+        paerror("start");
+#endif
+
     for (;;) {
         midi_service();
         bool usb_midi_is_mounted = midi_usb_mounted();
